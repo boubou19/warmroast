@@ -76,6 +76,10 @@ Parameters
            The port to bind the HTTP server to
            Default: 23000
            
+        -pm, --precise-mode
+           Specifies if in case no name match, warmroast should avoid the chosing menu
+           Default: false
+
         -t, --thread
            Optionally specify a thread to log only
            
