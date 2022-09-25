@@ -34,7 +34,7 @@ public class RoastOptions {
     @Parameter(names = { "--pid" }, description = "The PID of the VM to attach to")
     public Integer pid;
 
-    @Parameter(names = { "--name" }, description = "The name of the VM to attach to")
+    @Parameter(names = { "--name" }, description = "The name of the VM to attach to. It will attach to the first VM containing the specified name")
     public String vmName;
 
     @Parameter(names = { "-t", "--thread" }, description = "Optionally specify a thread to log only")
@@ -48,5 +48,8 @@ public class RoastOptions {
     
     @Parameter(names = { "--timeout" }, description = "The number of seconds before ceasing sampling (optional)")
     public Integer timeout;
+
+    @Parameter(names = { "-pm", "--precise-mode" }, description = "Specifies if in case no name match, warmroast should avoid the chosing menu")
+    public boolean preciseMode = false;
 
 }

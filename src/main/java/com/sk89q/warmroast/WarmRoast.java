@@ -258,8 +258,11 @@ public class WarmRoast extends TimerTask {
                 }
             }
         }
-        
-        if (vm == null) {
+        if (opt.preciseMode && opt.vmName != null){
+            System.err.println("Specified VM name was not found and precise mode is enabled. Exiting.");
+            System.exit(0);
+        }
+        else if (vm == null) {
             System.err.println("Choose a VM:");
             
             Collections.sort(virtualMachineDescriptors, new Comparator<VirtualMachineDescriptor>() {
