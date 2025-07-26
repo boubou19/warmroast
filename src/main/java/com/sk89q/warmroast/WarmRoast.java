@@ -243,20 +243,7 @@ public class WarmRoast extends TimerTask {
                 System.exit(1);
             }
         } else if (opt.vmName != null) {
-            for (VirtualMachineDescriptor desc : virtualMachineDescriptors) {
-                if (desc.displayName().contains(opt.vmName)) {
-                    try {
-                        vm = VirtualMachine.attach(desc);
-                        System.err.println("Attaching to '" + desc.displayName() + "'...");
-                        
-                        break;
-                    } catch (AttachNotSupportedException | IOException e) {
-                        System.err.println("Failed to attach VM by name '" + opt.vmName + "'");
-                        e.printStackTrace();
-                        System.exit(1);
-                    }
-                }
-            }
+            vm = byName(virtualMachineDescriptors, opt);
         }
         if (opt.preciseMode && opt.vmName != null && vm == null){
             System.err.println("Specified VM name was not found and precise mode is enabled. Exiting.");
@@ -267,6 +254,25 @@ public class WarmRoast extends TimerTask {
         }
         
         runRoast(vm, opt);
+    }
+
+    private static VirtualMachine byName(List<VirtualMachineDescriptor> virtualMachineDescriptors, RoastOptions opt) {
+        VirtualMachine vm = null;
+        for (VirtualMachineDescriptor desc : virtualMachineDescriptors) {
+            if (desc.displayName().contains(opt.vmName)) {
+                try {
+                    vm = VirtualMachine.attach(desc);
+                    System.err.println("Attaching to '" + desc.displayName() + "'...");
+
+                    break;
+                } catch (AttachNotSupportedException | IOException e) {
+                    System.err.println("Failed to attach VM by name '" + opt.vmName + "'");
+                    e.printStackTrace();
+                    System.exit(1);
+                }
+            }
+        }
+        return vm;
     }
 
     private static VirtualMachine byChoice(List<VirtualMachineDescriptor> virtualMachineDescriptors) {
