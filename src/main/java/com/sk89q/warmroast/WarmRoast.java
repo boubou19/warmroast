@@ -61,9 +61,10 @@ public class WarmRoast extends TimerTask {
 
     private static final String SEPARATOR = 
             "------------------------------------------------------------------------";
+    private static final String LOCAL_CONNECTOR_ADDRESS_PROP = "com.sun.management.jmxremote.localConnectorAddress";
     
     private final int interval;
-    private final VirtualMachine vm;
+    private final VirtualMachineDescriptor vmd;
     private final Timer timer = new Timer("Roast Pan", true);
     private final McpMapping mapping = new McpMapping();
     private final SortedMap<String, StackNode> nodes = new TreeMap<>();
@@ -73,8 +74,8 @@ public class WarmRoast extends TimerTask {
     private String filterThread;
     private long endTime = -1;
     
-    public WarmRoast(VirtualMachine vm, int interval) {
-        this.vm = vm;
+    public WarmRoast(VirtualMachineDescriptor vmd, int interval) {
+        this.vmd = vmd;
         this.interval = interval;
     }
     
@@ -111,19 +112,30 @@ public class WarmRoast extends TimerTask {
         this.endTime = l;
     }
 
-    public void connect() 
-            throws IOException, AgentLoadException, AgentInitializationException {
-        // Load the agent
-        String connectorAddr = vm.getAgentProperties().getProperty(
-                "com.sun.management.jmxremote.localConnectorAddress");
-        if (connectorAddr == null) {
-            String agent = vm.getSystemProperties().getProperty("java.home")
-                    + File.separator + "lib" + File.separator
-                    + "management-agent.jar";
-            vm.loadAgent(agent);
-            connectorAddr = vm.getAgentProperties().getProperty(
-                    "com.sun.management.jmxremote.localConnectorAddress");
+    public static VirtualMachineDescriptor findPID(String pid) {
+        List<VirtualMachineDescriptor> list = VirtualMachine.list();
+        for (VirtualMachineDescriptor vmd : list) {
+            String PID = vmd.id();
+
+            if (PID.equals(pid)) {
+                return vmd;
+            }
         }
+        throw new RuntimeException();
+    }
+
+    public void connect() throws IOException, AttachNotSupportedException {
+        // Load the agent
+        VirtualMachine vm = VirtualMachine.attach(vmd.id());
+        String connectorAddr = vm.getAgentProperties().getProperty(LOCAL_CONNECTOR_ADDRESS_PROP);
+        if (connectorAddr == null) {
+            vm.startLocalManagementAgent();
+            connectorAddr = vm.getAgentProperties().getProperty(LOCAL_CONNECTOR_ADDRESS_PROP);
+            if (connectorAddr == null) {
+                throw new NullPointerException("connectorAddress is null");
+            }
+        }
+        vm.detach();
 
         // Connect
         JMXServiceURL serviceURL = new JMXServiceURL(connectorAddr);
@@ -231,58 +243,56 @@ public class WarmRoast extends TimerTask {
             System.err.println("There is no jvm to sample, launch one first.");
             System.exit(1);
         }
-        VirtualMachine vm = null;
+        VirtualMachineDescriptor vmd = null;
         
         if (opt.pid != null) {
-            vm = byPID(opt);
+            vmd = byPID(opt);
         } else if (opt.vmName != null) {
-            vm = byName(virtualMachineDescriptors, opt);
+            try {
+                vmd = byName(virtualMachineDescriptors, opt);
+            }
+            catch (RuntimeException e) {
+                System.err.println("Failed to attach VM by name '" + opt.vmName + "'");
+                System.exit(1);
+            }
+            if (opt.preciseMode && opt.vmName != null && !vmd.displayName().equals(opt.vmName)){
+                System.err.println("Specified VM name was not found and precise mode is enabled. Exiting.");
+                System.exit(0);
+            }
         }
-        if (opt.preciseMode && opt.vmName != null && vm == null){
-            System.err.println("Specified VM name was not found and precise mode is enabled. Exiting.");
-            System.exit(0);
-        }
-        else if (vm == null) {
-            vm = byChoice(virtualMachineDescriptors);
+        else {
+            vmd = byChoice(virtualMachineDescriptors);
         }
         
-        runRoast(vm, opt);
+        runRoast(vmd, opt);
     }
 
-    private static VirtualMachine byPID(RoastOptions opt) {
-        VirtualMachine vm = null;
+    private static VirtualMachineDescriptor byPID(RoastOptions opt) {
+        VirtualMachineDescriptor vmd = null;
         try {
-            vm = VirtualMachine.attach(String.valueOf(opt.pid));
+            vmd = findPID(String.valueOf(opt.pid));
             System.err.println("Attaching to PID " + opt.pid + "...");
-        } catch (AttachNotSupportedException | IOException e) {
+        } catch (RuntimeException e) {
             System.err.println("Failed to attach VM by PID " + opt.pid);
             e.printStackTrace();
             System.exit(1);
         }
-        return vm;
+        return vmd;
     }
 
-    private static VirtualMachine byName(List<VirtualMachineDescriptor> virtualMachineDescriptors, RoastOptions opt) {
-        VirtualMachine vm = null;
+    private static VirtualMachineDescriptor byName(List<VirtualMachineDescriptor> virtualMachineDescriptors, RoastOptions opt) throws RuntimeException {
+
         for (VirtualMachineDescriptor desc : virtualMachineDescriptors) {
             if (desc.displayName().contains(opt.vmName)) {
-                try {
-                    vm = VirtualMachine.attach(desc);
-                    System.err.println("Attaching to '" + desc.displayName() + "'...");
-
-                    break;
-                } catch (AttachNotSupportedException | IOException e) {
-                    System.err.println("Failed to attach VM by name '" + opt.vmName + "'");
-                    e.printStackTrace();
-                    System.exit(1);
-                }
+                System.err.println("Attaching to '" + desc.displayName() + "'...");
+                return desc;
             }
         }
-        return vm;
+        throw new RuntimeException();
     }
 
-    private static VirtualMachine byChoice(List<VirtualMachineDescriptor> virtualMachineDescriptors) {
-        VirtualMachine vm = null;
+    private static VirtualMachineDescriptor byChoice(List<VirtualMachineDescriptor> virtualMachineDescriptors) {
+        VirtualMachineDescriptor vmd = null;
         System.err.println("Choose a VM:");
 
         Collections.sort(virtualMachineDescriptors, new Comparator<VirtualMachineDescriptor>() {
@@ -311,7 +321,7 @@ public class WarmRoast extends TimerTask {
             System.exit(1);
         }
 
-        // Get the VM
+        // Get the VMD
         try {
             int choice = Integer.parseInt(s) - 1;
             if (choice < 0 || choice >= virtualMachineDescriptors.size()) {
@@ -319,25 +329,20 @@ public class WarmRoast extends TimerTask {
                 System.err.println("Given choice is out of range.");
                 System.exit(1);
             }
-            vm = VirtualMachine.attach(virtualMachineDescriptors.get(choice));
+            vmd = virtualMachineDescriptors.get(choice);
         } catch (NumberFormatException e) {
             System.err.println("");
             System.err.println("That's not a number. Bye.");
             System.exit(1);
-        } catch (AttachNotSupportedException | IOException e) {
-            System.err.println("");
-            System.err.println("Failed to attach VM");
-            e.printStackTrace();
-            System.exit(1);
         }
 
-        return vm;
+        return vmd;
     }
 
-    private static void runRoast(VirtualMachine vm, RoastOptions opt) {
+    private static void runRoast(VirtualMachineDescriptor vmd, RoastOptions opt) {
         InetSocketAddress address = new InetSocketAddress(opt.bindAddress, opt.port);
 
-        WarmRoast roast = new WarmRoast(vm, opt.interval);
+        WarmRoast roast = new WarmRoast(vmd, opt.interval);
         if (opt.mappingsDir != null) {
             File dir = new File(opt.mappingsDir);
             File joined = new File(dir, "joined.srg");
