@@ -311,6 +311,10 @@ public class WarmRoast extends TimerTask {
             }
         }
         
+        runRoast(vm, opt);
+    }
+
+    private static void runRoast(VirtualMachine vm, RoastOptions opt) {
         InetSocketAddress address = new InetSocketAddress(opt.bindAddress, opt.port);
 
         WarmRoast roast = new WarmRoast(vm, opt.interval);
@@ -323,15 +327,15 @@ public class WarmRoast extends TimerTask {
             } catch (IOException e) {
                 System.err.println(
                         "Failed to read the mappings files (joined.srg, methods.csv) " +
-                        "from " + dir.getAbsolutePath() + ": " + e.getMessage());
+                                "from " + dir.getAbsolutePath() + ": " + e.getMessage());
                 System.exit(2);
             }
         }
 
         System.err.println(SEPARATOR);
-        
+
         roast.setFilterThread(opt.threadName);
-        
+
         if (opt.timeout != null && opt.timeout > 0) {
             roast.setEndTime(System.currentTimeMillis() + opt.timeout * 1000);
             System.err.println("Sampling set to stop in " + opt.timeout + " seconds.");
@@ -340,8 +344,8 @@ public class WarmRoast extends TimerTask {
         System.err.println("Starting a server on " + address.toString() + "...");
         System.err.println("Once the server starts (shortly), visit the URL in your browser.");
         System.err.println("Note: The longer you wait before using the output of that " +
-        		"webpage, the more accurate the results will be.");
-        
+                "webpage, the more accurate the results will be.");
+
         try {
             roast.connect();
             roast.start(address);
