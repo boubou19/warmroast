@@ -263,55 +263,63 @@ public class WarmRoast extends TimerTask {
             System.exit(0);
         }
         else if (vm == null) {
-            System.err.println("Choose a VM:");
-            
-            Collections.sort(virtualMachineDescriptors, new Comparator<VirtualMachineDescriptor>() {
-                @Override
-                public int compare(VirtualMachineDescriptor o1,
-                        VirtualMachineDescriptor o2) {
-                    return o1.displayName().compareTo(o2.displayName());
-                }
-            });
-            
-            // Print list of VMs
-            int i = 1;
-            for (VirtualMachineDescriptor desc : virtualMachineDescriptors) {
-                System.err.println("[" + (i++) + "] " + desc.displayName());
-            }
-            
-            // Ask for choice
-            System.err.println("");
-            System.err.print("Enter choice #: ");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            String s;
-            try {
-                s = reader.readLine();
-            } catch (IOException e) {
-                return;
-            }
-            
-            // Get the VM
-            try {
-                int choice = Integer.parseInt(s) - 1;
-                if (choice < 0 || choice >= virtualMachineDescriptors.size()) {
-                    System.err.println("");
-                    System.err.println("Given choice is out of range.");
-                    System.exit(1);
-                }
-                vm = VirtualMachine.attach(virtualMachineDescriptors.get(choice));
-            } catch (NumberFormatException e) {
-                System.err.println("");
-                System.err.println("That's not a number. Bye.");
-                System.exit(1);
-            } catch (AttachNotSupportedException | IOException e) {
-                System.err.println("");
-                System.err.println("Failed to attach VM");
-                e.printStackTrace();
-                System.exit(1);
-            }
+            vm = byChoice(virtualMachineDescriptors);
         }
         
         runRoast(vm, opt);
+    }
+
+    private static VirtualMachine byChoice(List<VirtualMachineDescriptor> virtualMachineDescriptors) {
+        VirtualMachine vm = null;
+        System.err.println("Choose a VM:");
+
+        Collections.sort(virtualMachineDescriptors, new Comparator<VirtualMachineDescriptor>() {
+            @Override
+            public int compare(VirtualMachineDescriptor o1,
+                               VirtualMachineDescriptor o2) {
+                return o1.displayName().compareTo(o2.displayName());
+            }
+        });
+
+        // Print list of VMs
+        int i = 1;
+        for (VirtualMachineDescriptor desc : virtualMachineDescriptors) {
+            System.err.println("[" + (i++) + "] " + desc.displayName());
+        }
+
+        // Ask for choice
+        System.err.println("");
+        System.err.print("Enter choice #: ");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        String s = "";
+        try {
+            s = reader.readLine();
+        } catch (IOException e) {
+            System.err.println("Failed to read choice. Bye.");
+            System.exit(1);
+        }
+
+        // Get the VM
+        try {
+            int choice = Integer.parseInt(s) - 1;
+            if (choice < 0 || choice >= virtualMachineDescriptors.size()) {
+                System.err.println("");
+                System.err.println("Given choice is out of range.");
+                System.exit(1);
+            }
+            vm = VirtualMachine.attach(virtualMachineDescriptors.get(choice));
+        } catch (NumberFormatException e) {
+            System.err.println("");
+            System.err.println("That's not a number. Bye.");
+            System.exit(1);
+        } catch (AttachNotSupportedException | IOException e) {
+            System.err.println("");
+            System.err.println("Failed to attach VM");
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        return vm;
     }
 
     private static void runRoast(VirtualMachine vm, RoastOptions opt) {
