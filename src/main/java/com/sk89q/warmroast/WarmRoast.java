@@ -234,14 +234,7 @@ public class WarmRoast extends TimerTask {
         VirtualMachine vm = null;
         
         if (opt.pid != null) {
-            try {
-                vm = VirtualMachine.attach(String.valueOf(opt.pid));
-                System.err.println("Attaching to PID " + opt.pid + "...");
-            } catch (AttachNotSupportedException | IOException e) {
-                System.err.println("Failed to attach VM by PID " + opt.pid);
-                e.printStackTrace();
-                System.exit(1);
-            }
+            vm = byPID(opt);
         } else if (opt.vmName != null) {
             vm = byName(virtualMachineDescriptors, opt);
         }
@@ -254,6 +247,19 @@ public class WarmRoast extends TimerTask {
         }
         
         runRoast(vm, opt);
+    }
+
+    private static VirtualMachine byPID(RoastOptions opt) {
+        VirtualMachine vm = null;
+        try {
+            vm = VirtualMachine.attach(String.valueOf(opt.pid));
+            System.err.println("Attaching to PID " + opt.pid + "...");
+        } catch (AttachNotSupportedException | IOException e) {
+            System.err.println("Failed to attach VM by PID " + opt.pid);
+            e.printStackTrace();
+            System.exit(1);
+        }
+        return vm;
     }
 
     private static VirtualMachine byName(List<VirtualMachineDescriptor> virtualMachineDescriptors, RoastOptions opt) {
