@@ -26,7 +26,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -51,8 +50,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import com.beust.jcommander.JCommander;
-import com.sun.tools.attach.AgentInitializationException;
-import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
@@ -68,7 +65,6 @@ public class WarmRoast extends TimerTask {
     private final Timer timer = new Timer("Roast Pan", true);
     private final McpMapping mapping = new McpMapping();
     private final SortedMap<String, StackNode> nodes = new TreeMap<>();
-    private JMXConnector connector;
     private MBeanServerConnection mbsc;
     private ThreadMXBean threadBean;
     private String filterThread;
@@ -139,7 +135,7 @@ public class WarmRoast extends TimerTask {
 
         // Connect
         JMXServiceURL serviceURL = new JMXServiceURL(connectorAddr);
-        connector = JMXConnectorFactory.connect(serviceURL);
+        JMXConnector connector = JMXConnectorFactory.connect(serviceURL);
         mbsc = connector.getMBeanServerConnection();
         try {
             threadBean = getThreadMXBean();
@@ -161,8 +157,8 @@ public class WarmRoast extends TimerTask {
 
     @Override
     public synchronized void run() {
-        if (endTime >= 0) {
-            if (endTime <= System.currentTimeMillis()) {
+        if (getEndTime() >= 0) {
+            if (getEndTime() <= System.currentTimeMillis()) {
                 cancel();
                 System.err.println("Sampling has stopped.");
                 return;
@@ -178,8 +174,8 @@ public class WarmRoast extends TimerTask {
                 if (threadName == null || stack == null) {
                     continue;
                 }
-
-                if (filterThread != null && !filterThread.equals(threadName)) {
+                String filterThreadValue = getFilterThread();
+                if (filterThreadValue != null && !filterThreadValue.equals(threadName)) {
                     continue;
                 }
 
@@ -219,7 +215,7 @@ public class WarmRoast extends TimerTask {
         server.join();
     }
 
-    public static void main(String[] args) throws AgentLoadException {
+    public static void main(String[] args) {
         RoastOptions opt = new RoastOptions();
         JCommander jc = new JCommander(opt, args);
         jc.setProgramName("warmroast");
@@ -233,13 +229,13 @@ public class WarmRoast extends TimerTask {
         System.err.println("WarmRoast");
         System.err.println("http://github.com/sk89q/warmroast");
         System.err.println(SEPARATOR);
-        System.err.println("");
+        System.err.println();
 
         //remove the jvm launching warmroast
         List<VirtualMachineDescriptor> virtualMachineDescriptors = VirtualMachine.list().stream()
                 .filter(vmd -> !vmd.displayName().contains("com.sk89q.warmroast.WarmRoast"))
-                .collect(Collectors.toList());;
-        if (virtualMachineDescriptors.size() == 0){
+                .collect(Collectors.toList());
+        if (virtualMachineDescriptors.isEmpty()){
             System.err.println("There is no jvm to sample, launch one first.");
             System.exit(1);
         }
@@ -295,13 +291,7 @@ public class WarmRoast extends TimerTask {
         VirtualMachineDescriptor vmd = null;
         System.err.println("Choose a VM:");
 
-        Collections.sort(virtualMachineDescriptors, new Comparator<VirtualMachineDescriptor>() {
-            @Override
-            public int compare(VirtualMachineDescriptor o1,
-                               VirtualMachineDescriptor o2) {
-                return o1.displayName().compareTo(o2.displayName());
-            }
-        });
+        virtualMachineDescriptors.sort(Comparator.comparing(VirtualMachineDescriptor::displayName));
 
         // Print list of VMs
         int i = 1;
@@ -310,7 +300,7 @@ public class WarmRoast extends TimerTask {
         }
 
         // Ask for choice
-        System.err.println("");
+        System.err.println();
         System.err.print("Enter choice #: ");
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String s = "";
@@ -325,13 +315,13 @@ public class WarmRoast extends TimerTask {
         try {
             int choice = Integer.parseInt(s) - 1;
             if (choice < 0 || choice >= virtualMachineDescriptors.size()) {
-                System.err.println("");
+                System.err.println();
                 System.err.println("Given choice is out of range.");
                 System.exit(1);
             }
             vmd = virtualMachineDescriptors.get(choice);
         } catch (NumberFormatException e) {
-            System.err.println("");
+            System.err.println();
             System.err.println("That's not a number. Bye.");
             System.exit(1);
         }
@@ -366,7 +356,7 @@ public class WarmRoast extends TimerTask {
             System.err.println("Sampling set to stop in " + opt.timeout + " seconds.");
         }
 
-        System.err.println("Starting a server on " + address.toString() + "...");
+        System.err.println("Starting a server on " + address + "...");
         System.err.println("Once the server starts (shortly), visit the URL in your browser.");
         System.err.println("Note: The longer you wait before using the output of that " +
                 "webpage, the more accurate the results will be.");
