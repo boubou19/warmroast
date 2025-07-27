@@ -14,7 +14,7 @@ WarmRoast is an easy-to-use CPU sampling tool for JVM applications, but particul
 
 **Download Latest Version:** http://builds.enginehub.org/job/warmroast/last-successful/
 
-Java 7 and above is required to use WarmRoast.
+Java 8 and above is required to use WarmRoast.
 
 Screenshots
 -----------
@@ -36,16 +36,18 @@ Usage
 
 ### Linux ###
 
-    java -Djava.library.path=PATH_TO_JDK/jre/bin -cp PATH_TO_JDK/lib/tools.jar:warmroast-1.0.0-SNAPSHOT.jar com.sk89q.warmroast.WarmRoast --thread "Server thread"
+    java -Djava.library.path=PATH_TO_JDK/jre/bin -cp PATH_TO_JDK/lib/tools.jar:warmroast-1.0.3.jar com.sk89q.warmroast.WarmRoast --thread "Server thread"
 
 ### Windows ###
 
 An example `PATH_TO_JDK` would be `C:\Program Files\Java\jdk1.7.0_45`
 
-    java -Djava.library.path=PATH_TO_JDK/jre/bin -cp PATH_TO_JDK/lib/tools.jar;warmroast-1.0.0-SNAPSHOT.jar com.sk89q.warmroast.WarmRoast --thread "Server thread"
+    java -Djava.library.path=PATH_TO_JDK/jre/bin -cp PATH_TO_JDK/lib/tools.jar;warmroast-1.0.3.jar com.sk89q.warmroast.WarmRoast --thread "Server thread"
 
 * The folder `PATH_TO_JDK/jre/bin` should contain "attach.dll"
 * The folder `PATH_TO_JDK/lib` should contain "tools.jar"
+
+**Note:** On Java 9 and above, the `tools.jar` has been removed from jdk, so you can directly do `-cp warmroast-1.0.3.jar`
 
 Parameters
 ----------
